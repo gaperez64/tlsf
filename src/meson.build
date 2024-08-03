@@ -14,12 +14,13 @@ pgen = generator(bison,
                              '--defines=@OUTPUT1@',
                              '@INPUT@'])
 
-# TLSF parsing library
-tlsfparse_lib = library('odeparse',
+# Library: Functions and expressions
+#tlsfspec_lib = library('tlsfspec', 'tlsfspec.c')
+
+# Library: TLSF parser
+tlsfparse_lib = library('tlsfparse',
                         [lgen.process('tlsf.l'),
                          pgen.process('tlsf.y')],
-                        link_with : [tlsfspec_lib],
-                        include_directories : [tlsfspec_inc])
+                        #link_with : [tlsfspec_lib],
+                        include_directories : [tlsf_inc])
 
-# Library: Functions and expressions
-#fun_lib = library('fun', 'funexp.c')
