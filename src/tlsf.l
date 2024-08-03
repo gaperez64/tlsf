@@ -1,11 +1,15 @@
-/* Scanner for a system of ODEs */
+/* Scanner for TLSF */
 
 %{
+#include <stdlib.h>
 #include "tlsfspec.h"
 #include "tlsfparse.h"
 #include "tlsf.tab.h"
 
 void yyerror(char const *);
+
+char string_buf[100];
+char *string_buf_ptr;
 %}
 
 %option yylineno
@@ -14,22 +18,26 @@ void yyerror(char const *);
 %option nounput
 %option prefix="tlsf"
 
-%x C_COMMENT
+%x C_COMMENT C_STRLIT
 
 %%
 
-"/*"            { BEGIN(C_COMMENT); }
-<C_COMMENT>"*/" { BEGIN(INITIAL); }
-<C_COMMENT>.    { /* do nothing */ }
-"//".*          { /* ignore single line comments */ }
+"/*"             { BEGIN(C_COMMENT); }
+<C_COMMENT>"*/"  { BEGIN(INITIAL); }
+<C_COMMENT>.     { /* do nothing */ }
+"//".*           { /* ignore single line comments */ }
+\"               { string_buf_ptr = string_buf; BEGIN(C_STRLIT); }
+<C_STRLIT>(.|\n) { *string_buf_ptr++ = yytext[1]; } 
+<C_STRLIT>\"     { BEGIN(INITIAL); *string_buf_ptr = '\0';
+                   tlsflval.str = strdup(string_buf); return STRLIT; }
 
-
-"+" { return ADD; }
-"-" { return SUB; }
-"*" { return MUL; }
+"+" { return PLUS; }
+"-" { return MINUS; }
+"*" { return TIMES; }
 "/" { return DIV; }
 "%" { return MOD; }
-"=" { return EQUAL; }
+"=" { return ASSIGN; }
+":" { return COLON; }
 ";" { return SCOLON; }
 "," { return COMMA; }
 "(" { return LPAR; }
@@ -39,12 +47,66 @@ void yyerror(char const *);
 "}" { return RCURLY; }
 "]" { return RSQBRACE; }
 "|" { return MID; }
+
 "MIN"    { return MIN; }
 "MAX"    { return MAX; }
 "SIZEOF" { return SIZEOF; }
 "(+)"    { return UNION; }
 "(*)"    { return INTER; }
+"(-)"    { return SDIFF; }
 "(\)"    { return SDIFF; }
+"SUM"    { return SUM; }
+"PROD"   { return PROD; }
+"SIZE"   { return SIZE; }
+"MUL"    { return MUL; }
+"DIV"    { return DIV; }
+"MOD"    { return MOD; }
+"PLUS"   { return ADD; }
+"MINUS"  { return MINUS; }
+"CAP"    { return INTER; }
+"CUP"    { return UNION; }
+"=="     { return EQUAL; }
+"EQ"     { return EQUAL; }
+"!="     { return NEQUAL; }
+"/="     { return NEQUAL; }
+"NEQ"    { return NEQUAL; }
+"<"      { return LE; }
+"LE"     { return LE; }
+"<="     { return LEQ; }
+"LEQ"    { return LEQ; }
+">"      { return GE; }
+"GE"     { return GE; }
+">="     { return GEQ; }
+"GEQ"    { return GEQ; }
+
+"SETMINUS" { return SDIFF; }
+"IN"       { return ELEM; }
+"<-"       { return ELEM; }
+"ELEM"     { return ELEM; }
+"!"        { return BANG; }
+"NOT"      { return NOT; }
+"X"        { return NEXT; }
+"G"        { return ALWAYS; }
+"F"        { return EVENTUALLY; }
+"&&"       { return AND; }
+"AND"      { return AND; }
+"FORALL"   { return FORALL; }
+"||"       { return OR; }
+"OR"       { return OR; }
+"EXISTS"   { return EXISTS; }
+"->"       { return IMPLIES; }
+"IMPLIES"  { return IMPLIES; }
+"<->"      { return EQUIV; }
+"EQUIV"    { return EQUIV; }
+"U"        { return UNTIL; }
+"W"        { return WKUNTIL; }
+"R"        { return RELEASE; }
+"~"        { return PTMATCH; }
+".."       { return ELLIPSIS; }
+"otherwise" { return OTHERWISE; }
+
+"true"     { return TRUE; }
+"false"    { return FALSE; }
 
 "INFO"        { return INFO; }
 "TITLE"       { return TITLE; }
@@ -67,23 +129,17 @@ void yyerror(char const *);
 "GLOBAL"      { return GLOBAL; }
 "PARAMETERS"  { return PARAMETERS; }
 "DEFINITIONS" { return DEFINITIONS; }
+"enum"        { return ENUM; }
 
-"Mealy"        { return MEALY; }
-"Mealy,Strict" { return STMEALY; }
-"Mealy,Finite" { return FMEALY; }
-"Moore"        { return MOORE; }
-"Moore,Strict" { return STMOORE; }
-"Moore,Finite" { return FMOORE; }
+"Mealy"  { return MEALY; }
+"Strict" { return STRICT; }
+"Finite" { return FINITE; }
+"Moore"  { return MOORE; }
 
-"X"    { return WKNEXT; }
-"X[!]" { return STNEXT; }
-"G"    { return ALWAYS; }
-"F"    { return EVENTUALLY; }
-"U"    { return UNTIL; }
-"W"    { return WKUNTIL; }
 
-[0-9](\.[0-9]*)?          { tlsflval.str = strdup(yytext); return NUMBER; }
+[0-9][0-9]*               { tlsflval.num = atoi(yytext); return NUMBER; }
 [@_a-zA-Z][@'_a-zA-Z0-9]* { tlsflval.str = strdup(yytext); return IDENT; }
+[01*][01*]*               { tlsflval.str = strdup(yytext); return MASK; }
 
 [ \t\n] { /* ignore white spaces */ }
 .       { fprintf(stderr, "Unexpected symbol: %c\n", *yytext); return UNKNOWN; }
