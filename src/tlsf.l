@@ -25,7 +25,7 @@ char *string_buf_ptr;
 "/*"             { BEGIN(C_COMMENT); }
 <C_COMMENT>"*/"  { BEGIN(INITIAL); }
 <C_COMMENT>.     { /* do nothing */ }
-"//".*           { /* ignore single-line comments */ }
+"//".*           { /* ignore single line comments */ }
 \"               { string_buf_ptr = string_buf;
                    BEGIN(C_STRLIT); }
 <C_STRLIT>([^\"]|\n) { *string_buf_ptr++ = yytext[1]; } 
