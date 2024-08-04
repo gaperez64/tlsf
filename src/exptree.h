@@ -2,7 +2,7 @@
 #define EXPTREE_H
 
 typedef enum ExpType {
-  XT_AP;
+  XT_AP,
 } ExpType;
 
 /* Essentially a binary tree with node type */

@@ -3,7 +3,8 @@ project('tlsf', 'c',
   default_options : ['warning_level=3']
 )
 
-subdir('src')
 tlsf_inc = include_directories('src')
+
+subdir('src')
 
 subdir('test')

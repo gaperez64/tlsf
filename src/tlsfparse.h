@@ -3,7 +3,7 @@
 
 #include "tlsfspec.h"
 
-int parseTLSFString(const char *, TLSFSpec **);
+int parseTLSFString(const char *, TLSFSpec *);
 void setTLSFInputString(const char *);
 void endTLSFScan(void);
 

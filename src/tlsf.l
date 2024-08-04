@@ -26,10 +26,13 @@ char *string_buf_ptr;
 <C_COMMENT>"*/"  { BEGIN(INITIAL); }
 <C_COMMENT>.     { /* do nothing */ }
 "//".*           { /* ignore single line comments */ }
-\"               { string_buf_ptr = string_buf; BEGIN(C_STRLIT); }
-<C_STRLIT>(.|\n) { *string_buf_ptr++ = yytext[1]; } 
-<C_STRLIT>\"     { BEGIN(INITIAL); *string_buf_ptr = '\0';
-                   tlsflval.str = strdup(string_buf); return STRLIT; }
+\"               { string_buf_ptr = string_buf;
+                   BEGIN(C_STRLIT); }
+<C_STRLIT>([^\"]|\n) { *string_buf_ptr++ = yytext[1]; } 
+<C_STRLIT>\"         { BEGIN(INITIAL);
+                       *string_buf_ptr = '\0';
+                       tlsflval.str = strdup(string_buf);
+                       return STRLIT; }
 
 "+" { return PLUS; }
 "-" { return MINUS; }
@@ -54,7 +57,7 @@ char *string_buf_ptr;
 "(+)"    { return UNION; }
 "(*)"    { return INTER; }
 "(-)"    { return SDIFF; }
-"(\)"    { return SDIFF; }
+"(\\)"   { return SDIFF; }
 "SUM"    { return SUM; }
 "PROD"   { return PROD; }
 "SIZE"   { return SIZE; }
@@ -125,7 +128,7 @@ char *string_buf_ptr;
 "ASSUME"      { return ASSUME; }
 "ASSUMPTIONS" { return ASSUME; }
 "GUARANTEE"   { return GUARANTEE; }
-"GUARANTEES"  { return GUARANTEES; }
+"GUARANTEES"  { return GUARANTEE; }
 "GLOBAL"      { return GLOBAL; }
 "PARAMETERS"  { return PARAMETERS; }
 "DEFINITIONS" { return DEFINITIONS; }
@@ -137,12 +140,13 @@ char *string_buf_ptr;
 "Moore"  { return MOORE; }
 
 
-[0-9][0-9]*               { tlsflval.num = atoi(yytext); return NUMBER; }
+[0-9][0-9]*               { tlsflval.str = strdup(yytext); return NUMBER; }
 [@_a-zA-Z][@'_a-zA-Z0-9]* { tlsflval.str = strdup(yytext); return IDENT; }
 [01*][01*]*               { tlsflval.str = strdup(yytext); return MASK; }
 
 [ \t\n] { /* ignore white spaces */ }
-.       { fprintf(stderr, "Unexpected symbol: %c\n", *yytext); return UNKNOWN; }
+.       { fprintf(stderr, "[line %d] Unexpected symbol: %c\n",tlsflineno, *yytext);
+          return UNKNOWN; }
 
 %%
 
