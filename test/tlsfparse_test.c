@@ -121,6 +121,179 @@
   "}"\
   "}"
 
+#define TESTFILE4 ""\
+  "INFO {"\
+  "TITLE: \"AMBA AHB Arbiter\""\
+  "DESCRIPTION: \"Component: Shift\""\
+  "SEMANTICS: Mealy "\
+  "TARGET: Mealy "\
+  "}"\
+  "MAIN {"\
+  "INPUTS { HREADY; LOCKED; }"\
+  "OUTPUTS { HMASTLOCK; }"\
+  "ASSERT {"\
+  "// if HREADY is high, the component copies LOCKED to HMASTLOCK, shifted by one time step\n"\
+  "HREADY -> (X HMASTLOCK <-> LOCKED);"\
+  "// if HREADY is low, the old value of HMASTLOCK is copied\n"\
+  "!HREADY -> (X HMASTLOCK <-> HMASTLOCK);"\
+  "}"\
+  "}"\
+
+#define TESTFILE5 ""\
+  "INFO {"\
+  "TITLE: \"AMBA AHB Arbiter\""\
+  "DESCRIPTION: \"Component: TSingle\""\
+  "SEMANTICS: Mealy "\
+  "TARGET: Mealy "\
+  "}"\
+  "MAIN {"\
+  "INPUTS { SINGLE; HREADY; LOCKED; DECIDE; }"\
+  "OUTPUTS { READY3; }"\
+  "INITIALLY {"\
+  "// initially no decision is taken\n"\
+  "!DECIDE;"\
+  "}"\
+  "PRESET {"\
+  "// at startup, the component is ready\n"\
+  "READY3;"\
+  "}"\
+  "REQUIRE {"\
+  "// decisions are only taken if the component is ready\n"\
+  "!READY3 -> X !DECIDE;"\
+  "}"\
+  "ASSERT {"\
+  "// for each single, locked transmission, the bus is locked for one time step\n"\
+  "DECIDE ->"\
+  "X[2] (((SINGLE && LOCKED) -> (!READY3 U (HREADY && !READY3 && X READY3))) &&"\
+  "(!(SINGLE && LOCKED) -> READY3));"\
+  "// the component stays ready as long as there is no decision\n"\
+  "READY3 && X !DECIDE -> X READY3;"\
+  "// if there is a decision the component blocks the bus for at least two time steps\n"\
+  "READY3 && X DECIDE -> G[1:2] ! READY3;"\
+  "}"\
+  "ASSUME {"\
+  "// a slave cannot block the bus\n"\
+  "G F HREADY;"\
+  "}"\
+  "}"\
+
+#define TESTFILE6 ""\
+  "INFO {"\
+  "TITLE: \"AMBA AHB Arbiter\""\
+  "DESCRIPTION: \"Component: TIncr\""\
+  "SEMANTICS: Mealy "\
+  "TARGET: Mealy "\
+  "} "\
+  "MAIN { "\
+  "INPUTS { INCR; HREADY; LOCKED; DECIDE; BUSREQ; } "\
+  "OUTPUTS { READY1; } "\
+  "INITIALLY { !DECIDE; } "\
+  "PRESET { READY1; } "\
+  "REQUIRE { "\
+  "// decisions are only taken if the component is ready\n"\
+  "!READY1 -> X !DECIDE; "\
+  "} "\
+  "ASSERT { "\
+  "// for each incremental, locked transmission, the bus is locked as long as requested\n"\
+  "DECIDE -> "\
+  "X[2] (((INCR && LOCKED) -> (!READY1 W (HREADY && !BUSREQ))) && "\
+  "(!(INCR && LOCKED) -> READY1)); "\
+  "// the component stays ready as long as there is no decision\n"\
+  "READY && X !DECIDE -> X READY1; "\
+  "// if there is a decision the component blocks the bus for at least two time steps\n"\
+  "READY1 && X DECIDE -> G[1:2] ! READY1; "\
+  "} "\
+  "ASSUME { "\
+  "// slaves and masters cannot block the bus\n"\
+  "G F HREADY && G F !BUSREQ; "\
+  "} "\
+  "} "\
+
+#define TESTFILE7 ""\
+  "INFO {\n"\
+  "TITLE: \"AMBA AHB Arbiter\"\n"\
+  "DESCRIPTION: \"Component: TBurst4\"\n"\
+  "SEMANTICS: Mealy\n"\
+  "TARGET: Mealy\n"\
+  "}\n"\
+  "MAIN {\n"\
+  "INPUTS { BURST4; HREADY; LOCKED; DECIDE; }\n"\
+  "OUTPUTS { READY2; }\n"\
+  "INITIALLY { !DECIDE; }\n"\
+  "PRESET { READY2; }\n"\
+  "REQUIRE {\n"\
+  "// decisions are only taken if the component is ready\n"\
+  "!READY2 -> X !DECIDE;\n"\
+  "}\n"\
+  "ASSERT {\n"\
+  "// for each burst4, locked transmission, the bus is locked for four time steps\n"\
+  "DECIDE ->\n"\
+  "X[2] (((BURST4 && LOCKED) -> (!READY2 U (HREADY && !READY2 && X (!READY2 U (HREADY &&\n"\
+  "!READY2 && X (!READY2 U (HREADY && !READY2 && X (!READY2 U (HREADY &&\n"\
+  "!READY2 && XREADY2))))))))) && (!(BURST4 && LOCKED) -> READY2));\n"\
+  "// the component stays ready as long as there is no decision\n"\
+  "READY2 && X !DECIDE -> X READY2;\n"\
+  "// if there is a decision the component blocks the bus for at least two time steps\n"\
+  "READY2 && X DECIDE -> G[1:2] ! READY2;\n"\
+  "}\n"\
+  "ASSUME {\n"\
+  "// a slave block the bus\n"\
+  "G F HREADY;\n"\
+  "}\n"\
+  "}\n"
+
+#define TESTFILE8 ""\
+  "INFO {"\
+  "TITLE: \"AMBA AHB Arbiter\"\n"\
+  "DESCRIPTION: \"Component: Lock\"\n"\
+  "SEMANTICS: Mealy\n"\
+  "TARGET: Mealy\n"\
+  "}\n"\
+  "GLOBAL {\n"\
+  "PARAMETERS {\n"\
+  "n = 2;\n"\
+  "}\n"\
+  "DEFINITIONS {\n"\
+  "// mutual exclusion\n"\
+  "mutual(b) =\n"\
+  "||[i IN {0, 1 .. (SIZEOF b) - 1}]\n"\
+  "&&[j IN {0, 1 .. (SIZEOF b) - 1} (\\) {i}]\n"\
+  "!(b[i] && b[j]);\n"\
+  "// checks whether a bus encodes the numerical value v in binary\n"\
+  "value(bus,v) = value'(bus,v,0, SIZEOF bus);\n"\
+  "value'(bus,v,i,j) =\n"\
+  "j <= 0 : true\n"\
+  "bit(v,i) == 1 : value'(bus,v,i+1,j/2)\n"\
+  "&& bus[i]\n"\
+  "otherwise : value'(bus,v,i+1,j/2)\n"\
+  "&& !bus[i];\n"\
+  "// returns the i-th bit of the numerical value v\n"\
+  "bit(v,i) =\n"\
+  "i <= 0 : v % 2\n"\
+  "otherwise : bit(v/2,i-1);\n"\
+  "}\n"\
+  "}\n"\
+  "MAIN {\n"\
+  "INPUTS {\n"\
+  "DECIDE;\n"\
+  "HGRANT[n];\n"\
+  "HLOCK[n];\n"\
+  "}\n"\
+  "OUTPUTS {\n"\
+  "LOCKED;\n"\
+  "}\n"\
+  "REQUIRE {\n"\
+  "// a every time exactely one grant is high\n"\
+  "mutual(HGRANT) && ||[0 <= i < n] HGRANT[i];\n"\
+  "}\n"\
+  "ASSERT {\n"\
+  "// whenever a decicion is taken, the LOCKED signal is updated to\n"\
+  "// the HLOCK value of the granted master\n"\
+  "&&[0 <= i < n] (DECIDE && X HGRANT[i] -> (X LOCKED <-> X HLOCK[i]));\n"\
+  "// otherwise, the value is copied\n"\
+  "!DECIDE -> (X LOCKED <-> LOCKED);\n"\
+  "}}\n"
+
 int parse(const char str[]) {
   TLSFSpec spec;
   return parseTLSFString(str, &spec);
@@ -137,6 +310,16 @@ int main(int argc, char *argv[]) {
     assert(parse(TESTFILE2) == 0);
   if (atoi(argv[1]) == 3)
     assert(parse(TESTFILE3) == 0);
+  if (atoi(argv[1]) == 4)
+    assert(parse(TESTFILE4) == 0);
+  if (atoi(argv[1]) == 5)
+    assert(parse(TESTFILE5) == 0);
+  if (atoi(argv[1]) == 6)
+    assert(parse(TESTFILE6) == 0);
+  if (atoi(argv[1]) == 7)
+    assert(parse(TESTFILE7) == 0);
+  if (atoi(argv[1]) == 8)
+    assert(parse(TESTFILE8) == 0);
 
   return 0;
 }
