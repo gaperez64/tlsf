@@ -12,9 +12,19 @@
   #include "tlsf.lex.h"
   #include "tlsfspec.h"
 }
+
+%code requires {
+  typedef struct StrLL {
+    char *str;
+    struct StrLL *next;
+  } StrLL;
+}
+
 %code {
   void yyerror(const char *);
   TLSFSpec *spec;
+  StrLL *prependStr(StrLL *, char *);
+  char **strLL2Array(StrLL *);
 }
 
 /* tokens that will be used */
@@ -22,8 +32,10 @@
   ExpTree *tree;
   char *str;
   int num;
+  SemType sem;
+  StrLL *strlist;
 }
-%token LCURLY TITLE COLON STRLIT DESCRIPTION MAIN LPAR RPAR
+%token LCURLY TITLE COLON DESCRIPTION MAIN LPAR RPAR
 %token SEMANTICS TARGET TAGS RCURLY MEALY COMMA DIV BANG
 %token STRICT FINITE MOORE INPUTS OUTPUTS INFO MAX PTMATCH
 %token SCOLON INITIALLY PRESET REQUIRE ASSERT MID EXISTS
@@ -34,8 +46,9 @@
 %token MINUS ELLIPSIS UNION INTER SDIFF ASSIGN PLUS PROD
 %token ELEM NEQUAL LE LEQ GE GEQ OTHERWISE TIMES CAP CUP
 %token UNKNOWN
-%token <str> IDENT MASK
-%token <num> NUMBER
+%token <str> IDENT MASK STRLIT NUMBER
+%type <sem> target semantics
+%type <strlist> opttags tags
 
 %%
 
@@ -114,28 +127,34 @@ explist: exp COMMA explist
        | exp;
 
 info: INFO LCURLY 
-      TITLE COLON STRLIT
-      DESCRIPTION COLON STRLIT
-      SEMANTICS COLON semantics
-      TARGET COLON target
-      opttags
+      TITLE COLON STRLIT         
+      DESCRIPTION COLON STRLIT   
+      SEMANTICS COLON semantics  
+      TARGET COLON target        
+      opttags                    
       RCURLY
+    { spec->title = $5;
+      spec->descr = $8;
+      spec->semnt = $11;
+      spec->targt = $14;
+      spec->tags = strLL2Array($15); }
     ;
 
-opttags: TAGS COLON tags
-       | ;
+opttags: TAGS COLON tags { $$ = $3; }
+       |                 { $$ = NULL; }
+       ;
 
-semantics: target
-         | target COMMA STRICT
-         | target COMMA FINITE
+semantics: target              { $$ = $1; }
+         | target COMMA STRICT { $$ = $1 | ST_STRICT; }
+         | target COMMA FINITE { $$ = $1 | ST_FINITE; }
          ;
 
-target: MEALY
-      | MOORE
+target: MEALY { $$ = ST_MEALY; }
+      | MOORE { $$ = ST_MOORE; }
       ;
 
-tags: tags COMMA STRLIT
-    | STRLIT
+tags: tags COMMA STRLIT { $$ = prependStr($1, $3); }
+    | STRLIT            { $$ = prependStr(NULL, $1); }
     ;
 
 main: MAIN LCURLY
@@ -303,8 +322,33 @@ void yyerror(const char *str) {
 
 int parseTLSFString(const char *in, TLSFSpec *outspec) {
   setTLSFInputString(in);
+  spec = outspec;
   int rv = yyparse();
   endTLSFScan();
-  spec = outspec;
   return rv;
+}
+
+StrLL *prependStr(StrLL *list, char *str) {
+  StrLL *node = malloc(sizeof(StrLL));
+  node->next = list;
+  node->str = str;
+  return node;
+}
+
+char **strLL2Array(StrLL *list) {
+  StrLL *ptr = list;
+  int len = 0;
+  while (ptr != NULL) {
+    len += 1;
+    ptr = ptr->next;
+  }
+  char **ret = malloc(sizeof(char *) * len);
+  ptr = list;
+  for (int i = 0; i < len; i++) {
+    ret[i] = ptr->str;
+    ptr = ptr->next;
+    free(list);
+    list = ptr;
+  }
+  return ret;
 }
