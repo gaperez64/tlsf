@@ -1,6 +1,7 @@
 #include "tlsfparse.h"
 #include "tlsfspec.h"
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -304,22 +305,29 @@ int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
 
-  if (atoi(argv[1]) == 1)
-    assert(parse(TESTFILE1) == 0);
-  if (atoi(argv[1]) == 2)
-    assert(parse(TESTFILE2) == 0);
-  if (atoi(argv[1]) == 3)
-    assert(parse(TESTFILE3) == 0);
-  if (atoi(argv[1]) == 4)
-    assert(parse(TESTFILE4) == 0);
-  if (atoi(argv[1]) == 5)
-    assert(parse(TESTFILE5) == 0);
-  if (atoi(argv[1]) == 6)
-    assert(parse(TESTFILE6) == 0);
-  if (atoi(argv[1]) == 7)
-    assert(parse(TESTFILE7) == 0);
-  if (atoi(argv[1]) == 8)
-    assert(parse(TESTFILE8) == 0);
+  switch (atoi(argv[1])) {
+    /* plain (syntactic) parsing tests */
+    case 1: assert(parse(TESTFILE1) == 0); break;
+    case 2: assert(parse(TESTFILE2) == 0); break;
+    case 3: assert(parse(TESTFILE3) == 0); break;
+    case 4: assert(parse(TESTFILE4) == 0); break;
+    case 5: assert(parse(TESTFILE5) == 0); break;
+    case 6: assert(parse(TESTFILE6) == 0); break;
+    case 7: assert(parse(TESTFILE7) == 0); break;
+    case 8: assert(parse(TESTFILE8) == 0); break;
+    /* check against the information in the tlsf */
+    case 9:
+    {
+      TLSFSpec spec;
+      parseTLSFString(TESTFILE1, &spec);
+      assert(strcmp(spec.title, "AMBA AHB Arbiter") == 0);
+      assert(strcmp(spec.descr, "Component: Decode") == 0);
+      assert(spec.semnt == ST_MEALY);
+      assert(spec.targt == ST_MEALY);
+      break;
+    }
+    default: assert(true);
+  }
 
   return 0;
 }

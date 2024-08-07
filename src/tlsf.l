@@ -18,21 +18,21 @@ char *string_buf_ptr;
 %option nounput
 %option prefix="tlsf"
 
-%x C_COMMENT C_STRLIT
+%x Q_COMMENT Q_STRLIT
 
 %%
 
-"/*"             { BEGIN(C_COMMENT); }
-<C_COMMENT>"*/"  { BEGIN(INITIAL); }
-<C_COMMENT>.     { /* do nothing */ }
+"/*"             { BEGIN(Q_COMMENT); }
+<Q_COMMENT>"*/"  { BEGIN(INITIAL); }
+<Q_COMMENT>.     { /* do nothing */ }
 "//".*           { /* ignore single line comments */ }
 \"               { string_buf_ptr = string_buf;
-                   BEGIN(C_STRLIT); }
-<C_STRLIT>([^\"]|\n) { *string_buf_ptr++ = yytext[1]; } 
-<C_STRLIT>\"         { BEGIN(INITIAL);
-                       *string_buf_ptr = '\0';
-                       tlsflval.str = strdup(string_buf);
-                       return STRLIT; }
+                   BEGIN(Q_STRLIT); }
+<Q_STRLIT>[^\"]  { *string_buf_ptr++ = yytext[0]; } 
+<Q_STRLIT>\"     { BEGIN(INITIAL);
+                   *string_buf_ptr = '\0';
+                   tlsflval.str = strdup(string_buf);
+                   return STRLIT; }
 
 "+" { return PLUS; }
 "-" { return MINUS; }
