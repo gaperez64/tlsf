@@ -393,8 +393,8 @@ int main(int argc, char *argv[]) {
                      ST_MEALY | ST_FINITE, ST_MEALY));
     break;
   case 16:
-    assert(checkInfo(TESTFILE8, "AMBA AHB Arbiter", "Component: Lock",
-                     ST_MEALY, ST_MEALY));
+    assert(checkInfo(TESTFILE8, "AMBA AHB Arbiter", "Component: Lock", ST_MEALY,
+                     ST_MEALY));
     break;
   default:
     assert(true);
