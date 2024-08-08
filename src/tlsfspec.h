@@ -13,11 +13,11 @@ typedef enum SemType {
 } SemType;
 
 typedef struct TLSFSpec {
-  char* title;
-  char* descr;
+  char *title;
+  char *descr;
   SemType semnt;
   SemType targt;
-  char** tags;
+  char **tags;
   struct ExpTree *initially;
   struct ExpTree *preset;
   struct ExpTree *require;
