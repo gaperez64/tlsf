@@ -352,3 +352,24 @@ char **strLL2Array(StrLL *list) {
   }
   return ret;
 }
+
+void resetTLSFSpec(TLSFSpec *spec) {
+  free(spec->title);
+  free(spec->descr);
+  if (spec->tags != NULL)
+    free(spec->tags);
+  /*
+  if (spec->initially != NULL)
+    delExpTree(spec->initially);
+  if (spec->preset != NULL)
+    delExpTree(spec->preset);
+  if (spec->require != NULL)
+    delExpTree(spec->require);
+  if (spec->assrt != NULL)
+    delExpTree(spec->assrt);
+  if (spec->assume != NULL)
+    delExpTree(spec->assume);
+  if (spec->guarantee != NULL)
+    delExpTree(spec->guarantee);
+  */
+}

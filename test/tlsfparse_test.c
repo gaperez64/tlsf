@@ -317,7 +317,9 @@
 
 int parse(const char str[]) {
   TLSFSpec spec;
-  return parseTLSFString(str, &spec);
+  int ret = parseTLSFString(str, &spec);
+  resetTLSFSpec(&spec);
+  return ret;
 }
 
 bool checkInfo(const char str[], const char title[], const char descr[],
@@ -329,6 +331,7 @@ bool checkInfo(const char str[], const char title[], const char descr[],
   ret &= strcmp(spec.descr, descr) == 0;
   ret &= spec.semnt == semnt;
   ret &= spec.targt == targt;
+  resetTLSFSpec(&spec);
   return ret;
 }
 

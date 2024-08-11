@@ -1,5 +1,6 @@
-# tlsf
-Utilities and tools for TLSF: A language for reactive synthesis specifications
+# TLSF Tools Temporal Logic Synthesis Format Files
+Utilities and tools for the Temporal Logic Synthesis Format (TLSF): A language
+for reactive synthesis specifications
 
 ## Parser
 The `bison`/`flex` parser is stricter than that of

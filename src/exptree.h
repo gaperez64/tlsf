@@ -13,4 +13,6 @@ typedef struct ExpTree {
   struct ExpTree *right;
 } ExpTree;
 
+void delExpTree(ExpTree *);
+
 #endif
