@@ -22,9 +22,9 @@
 
 %code {
   void yyerror(const char *);
-  TLSFSpec *spec;
-  StrLL *prependStr(StrLL *, char *);
-  char **strLL2Array(StrLL *);
+  static TLSFSpec *spec;
+  static StrLL *prependStr(StrLL *, char *);
+  static char **strLL2Array(StrLL *, int *);
 }
 
 /* tokens that will be used */
@@ -137,7 +137,7 @@ info: INFO LCURLY
       spec->descr = $8;
       spec->semnt = $11;
       spec->targt = $14;
-      spec->tags = strLL2Array($15); }
+      spec->tags = strLL2Array($15, &(spec->ntags)); }
     ;
 
 opttags: TAGS COLON tags { $$ = $3; }
@@ -313,7 +313,6 @@ expbase: IDENT LSQBRACE exp4 RSQBRACE
        | LCURLY exp COMMA exp ELLIPSIS exp RCURLY
        ;
 
-
 %%
 
 void yyerror(const char *str) {
@@ -328,23 +327,26 @@ int parseTLSFString(const char *in, TLSFSpec *outspec) {
   return rv;
 }
 
-StrLL *prependStr(StrLL *list, char *str) {
+static StrLL *prependStr(StrLL *list, char *str) {
   StrLL *node = malloc(sizeof(StrLL));
   node->next = list;
   node->str = str;
   return node;
 }
 
-char **strLL2Array(StrLL *list) {
+static char **strLL2Array(StrLL *list, int *len) {
+  *len = 0;
+  if (list == NULL)
+    return NULL;
+
   StrLL *ptr = list;
-  int len = 0;
   while (ptr != NULL) {
     len += 1;
     ptr = ptr->next;
   }
-  char **ret = malloc(sizeof(char *) * len);
+  char **ret = malloc(sizeof(char *) * (*len));
   ptr = list;
-  for (int i = 0; i < len; i++) {
+  for (int i = 0; i < *len; i++) {
     ret[i] = ptr->str;
     ptr = ptr->next;
     free(list);
@@ -356,8 +358,11 @@ char **strLL2Array(StrLL *list) {
 void resetTLSFSpec(TLSFSpec *spec) {
   free(spec->title);
   free(spec->descr);
-  if (spec->tags != NULL)
+  if (spec->tags != NULL) {
+    for (int i = 0; i < spec->ntags; i++)
+      free(spec->tags[i]);
     free(spec->tags);
+  }
   /*
   if (spec->initially != NULL)
     delExpTree(spec->initially);
