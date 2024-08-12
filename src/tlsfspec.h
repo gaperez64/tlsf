@@ -2,6 +2,7 @@
 #define TLSFSPEC_H
 
 #include "exptree.h"
+#include <stddef.h>
 
 typedef enum SemType {
   /* actual types */
@@ -12,11 +13,16 @@ typedef enum SemType {
   ST_FINITE = 2,
 } SemType;
 
+typedef struct EnumVal {
+  size_t nopts;
+  char *id;
+  char **opts;
+} EnumVal;
+
 typedef struct BusEnum {
   char *name;
-  int size;
-  char **ids;
-  char **vals;
+  size_t nvals;
+  EnumVal *vals;
 } BusEnum;
 
 typedef struct TLSFSpec {
@@ -24,8 +30,9 @@ typedef struct TLSFSpec {
   char *descr;
   SemType semnt;
   SemType targt;
-  int ntags;
+  size_t ntags;
   char **tags;
+  size_t nbenums;
   BusEnum *benums;
   struct ExpTree *initially;
   struct ExpTree *preset;

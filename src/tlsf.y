@@ -1,7 +1,5 @@
 /* Parser for TLSF */
 
-/* %define parse.error detailed */
-/* To be compatible with Bison 3.0.4 */
 %define parse.error verbose
 %define api.prefix {tlsf}
 
@@ -11,20 +9,113 @@
   #include "tlsfparse.h"
   #include "tlsf.lex.h"
   #include "tlsfspec.h"
+
+  #define APPEND(list, elem)                         \
+    do {                                             \
+      if ((list).len + 1 >= (list).max) {            \
+        size_t newsize =                             \
+          (list).max ? (list).max * 2 : 1;           \
+        size_t bs = newsize * sizeof(*((list).lst)); \
+        (list).lst = realloc(list.lst, bs);          \
+        (list).max = newsize;                        \
+      }                                              \
+      (list).lst[(list).len] = elem;                 \
+      (list).len += 1;                               \
+    } while (0)
+
+  #define TOARRAY(list, tgtlst, tgtlen) \
+    do {                                \
+      (tgtlst) = (list).lst;            \
+      (tgtlen) = (list).len;            \
+    } while (0)
+
+  #define RESET(list)    \
+    do {                 \
+      (list).lst = NULL; \
+      (list).len = 0;    \
+      (list).max = 0;    \
+    } while (0)
 }
 
 %code requires {
-  typedef struct StrLL {
-    char *str;
-    struct StrLL *next;
-  } StrLL;
+  #define LIST(name, elemtype) \
+    typedef struct {           \
+      elemtype *lst;           \
+      size_t len;              \
+      size_t max;              \
+    } name
+
+  LIST(StrLst, char *);
+  LIST(BusEnumLst, BusEnum);
+  LIST(EnumValLst, EnumVal);
 }
 
 %code {
-  void yyerror(const char *);
   static TLSFSpec *spec;
-  static StrLL *prependStr(StrLL *, char *);
-  static char **strLL2Array(StrLL *, int *);
+  static BusEnumLst enmlst;
+
+  void yyerror(const char *str) {
+    fprintf(stderr, "[line %d] Error: %s\n", tlsflineno, str);
+  }
+  
+  int parseTLSFString(const char *in, TLSFSpec *outspec) {
+    setTLSFInputString(in);
+    spec = outspec;
+  
+    /* init some values */
+    RESET(enmlst);
+    spec->benums = NULL;
+    spec->initially = NULL;
+    spec->preset = NULL;
+    spec->require = NULL;
+    spec->assrt = NULL;
+    spec->assume = NULL;
+    spec->guarantee = NULL;
+    /* end init */
+  
+    int rv = yyparse();
+    endTLSFScan();
+    return rv;
+  }
+  
+  void delTLSFSpec(TLSFSpec *spec) {
+    /* Deleting info section */
+    free(spec->title);
+    free(spec->descr);
+    if (spec->tags != NULL) {
+      for (size_t i = 0; i < spec->ntags; i++)
+        free(spec->tags[i]);
+      free(spec->tags);
+    }
+    /* Deleting enum symbol table */
+    if (spec->benums != NULL) {
+      for (size_t i = 0; i < spec->nbenums; i++) {
+        for (size_t j = 0; j < spec->benums[i].nvals; j++) {
+          for (size_t k = 0; k < spec->benums[i].vals[j].nopts; k++)
+            free(spec->benums[i].vals[j].opts[k]);
+          free(spec->benums[i].vals[j].opts);
+          free(spec->benums[i].vals[j].id);
+        }
+        free(spec->benums[i].vals);
+        free(spec->benums[i].name);
+      }
+      free(spec->benums);
+    }
+    
+    /* Deleting formulas */
+    if (spec->initially != NULL)
+      delExpTree(spec->initially);
+    if (spec->preset != NULL)
+      delExpTree(spec->preset);
+    if (spec->require != NULL)
+      delExpTree(spec->require);
+    if (spec->assrt != NULL)
+      delExpTree(spec->assrt);
+    if (spec->assume != NULL)
+      delExpTree(spec->assume);
+    if (spec->guarantee != NULL)
+      delExpTree(spec->guarantee);
+  }
 }
 
 /* tokens that will be used */
@@ -33,7 +124,8 @@
   char *str;
   int num;
   SemType sem;
-  StrLL *strlist;
+  StrLst strlst;
+  EnumValLst evllst;
 }
 %token LCURLY TITLE COLON DESCRIPTION MAIN LPAR RPAR
 %token SEMANTICS TARGET TAGS RCURLY MEALY COMMA DIV BANG
@@ -48,7 +140,8 @@
 %token UNKNOWN
 %token <str> IDENT MASK STRLIT NUMBER
 %type <sem> target semantics
-%type <strlist> opttags tags
+%type <strlst> tags masklist opttags
+%type <evllst> enumvals
 
 %%
 
@@ -73,6 +166,7 @@ parlist: parlist IDENT ASSIGN exp SCOLON
 definitions: DEFINITIONS LCURLY
              deflist
              RCURLY
+           { TOARRAY(enmlst, spec->benums, spec->nbenums); }
            | ;
 
 deflist: deflist IDENT ASSIGN exp SCOLON
@@ -80,16 +174,28 @@ deflist: deflist IDENT ASSIGN exp SCOLON
        | deflist enumdecl SCOLON
        | ;
 
-enumdecl: ENUM IDENT ASSIGN enumvals;
-
-enumvals: IDENT COLON masklist
-        | enumvals IDENT COLON masklist
+enumdecl: ENUM IDENT ASSIGN enumvals    { BusEnum be;
+                                          be.name = $2;
+                                          TOARRAY($4, be.vals, be.nvals);
+                                          APPEND(enmlst, be); }
         ;
 
-masklist: MASK
-        | NUMBER
-        | MASK COMMA masklist
-        | NUMBER COMMA masklist
+enumvals: IDENT COLON masklist          { EnumVal ev; 
+                                          ev.id = $1;
+                                          TOARRAY($3, ev.opts, ev.nopts);
+                                          RESET($$);
+                                          APPEND($$, ev); }
+        | enumvals IDENT COLON masklist { EnumVal ev;
+                                          ev.id = $2;
+                                          TOARRAY($4, ev.opts, ev.nopts);
+                                          $$ = $1;
+                                          APPEND($$, ev); }
+        ;
+
+masklist: MASK                  { RESET($$); APPEND($$, $1); }
+        | NUMBER                { RESET($$); APPEND($$, $1); }
+        | masklist COMMA MASK   { $$ = $1; APPEND($$, $3); }
+        | masklist COMMA NUMBER { $$ = $1; APPEND($$, $3); }
         ;
 
 fundecl: IDENT LPAR idlist RPAR ASSIGN gdexps
@@ -137,11 +243,11 @@ info: INFO LCURLY
       spec->descr = $8;
       spec->semnt = $11;
       spec->targt = $14;
-      spec->tags = strLL2Array($15, &(spec->ntags)); }
+      TOARRAY($15, spec->tags, spec->ntags); }
     ;
 
 opttags: TAGS COLON tags { $$ = $3; }
-       |                 { $$ = NULL; }
+       |                 { RESET($$); }
        ;
 
 semantics: target              { $$ = $1; }
@@ -153,8 +259,8 @@ target: MEALY { $$ = ST_MEALY; }
       | MOORE { $$ = ST_MOORE; }
       ;
 
-tags: tags COMMA STRLIT { $$ = prependStr($1, $3); }
-    | STRLIT            { $$ = prependStr(NULL, $1); }
+tags: tags COMMA STRLIT { $$ = $1; APPEND($$, $3); }
+    | STRLIT            { RESET($$); APPEND($$, $1); }
     ;
 
 main: MAIN LCURLY
@@ -314,67 +420,3 @@ expbase: IDENT LSQBRACE exp4 RSQBRACE
        ;
 
 %%
-
-void yyerror(const char *str) {
-  fprintf(stderr, "[line %d] Error: %s\n", tlsflineno, str);
-}
-
-int parseTLSFString(const char *in, TLSFSpec *outspec) {
-  setTLSFInputString(in);
-  spec = outspec;
-  int rv = yyparse();
-  endTLSFScan();
-  return rv;
-}
-
-static StrLL *prependStr(StrLL *list, char *str) {
-  StrLL *node = malloc(sizeof(StrLL));
-  node->next = list;
-  node->str = str;
-  return node;
-}
-
-static char **strLL2Array(StrLL *list, int *len) {
-  *len = 0;
-  if (list == NULL)
-    return NULL;
-
-  StrLL *ptr = list;
-  while (ptr != NULL) {
-    len += 1;
-    ptr = ptr->next;
-  }
-  char **ret = malloc(sizeof(char *) * (*len));
-  ptr = list;
-  for (int i = 0; i < *len; i++) {
-    ret[i] = ptr->str;
-    ptr = ptr->next;
-    free(list);
-    list = ptr;
-  }
-  return ret;
-}
-
-void resetTLSFSpec(TLSFSpec *spec) {
-  free(spec->title);
-  free(spec->descr);
-  if (spec->tags != NULL) {
-    for (int i = 0; i < spec->ntags; i++)
-      free(spec->tags[i]);
-    free(spec->tags);
-  }
-  /*
-  if (spec->initially != NULL)
-    delExpTree(spec->initially);
-  if (spec->preset != NULL)
-    delExpTree(spec->preset);
-  if (spec->require != NULL)
-    delExpTree(spec->require);
-  if (spec->assrt != NULL)
-    delExpTree(spec->assrt);
-  if (spec->assume != NULL)
-    delExpTree(spec->assume);
-  if (spec->guarantee != NULL)
-    delExpTree(spec->guarantee);
-  */
-}
