@@ -36,7 +36,7 @@ char *string_buf_ptr;
 
 "+" { return PLUS; }
 "-" { return MINUS; }
-"*" { return TIMES; }
+"*" { return MUL; }
 "/" { return DIV; }
 "%" { return MOD; }
 "=" { return ASSIGN; }
@@ -51,6 +51,11 @@ char *string_buf_ptr;
 "]" { return RSQBRACE; }
 "|" { return MID; }
 
+"+[" { return PLUS_LSQBRACE; }
+"*[" { return MUL_LSQBRACE; }
+"SUM[" { return PLUS_LSQBRACE; }
+"PROD[" { return MUL_LSQBRACE; }
+
 "MIN"    { return MIN; }
 "MAX"    { return MAX; }
 "SIZEOF" { return SIZEOF; }
@@ -58,13 +63,11 @@ char *string_buf_ptr;
 "(*)"    { return INTER; }
 "(-)"    { return SDIFF; }
 "(\\)"   { return SDIFF; }
-"SUM"    { return SUM; }
-"PROD"   { return PROD; }
 "SIZE"   { return SIZE; }
 "MUL"    { return MUL; }
 "DIV"    { return DIV; }
 "MOD"    { return MOD; }
-"PLUS"   { return ADD; }
+"PLUS"   { return PLUS; }
 "MINUS"  { return MINUS; }
 "CAP"    { return INTER; }
 "CUP"    { return UNION; }
@@ -82,6 +85,11 @@ char *string_buf_ptr;
 ">="     { return GEQ; }
 "GEQ"    { return GEQ; }
 
+"(*)[" { return UNION_LSQBRACE; }
+"(+)[" { return INTER_LSQBRACE; }
+"CUP[" { return UNION_LSQBRACE; }
+"CAP[" { return INTER_LSQBRACE; }
+
 "SETMINUS" { return SDIFF; }
 "IN"       { return ELEM; }
 "<-"       { return ELEM; }
@@ -93,10 +101,8 @@ char *string_buf_ptr;
 "F"        { return EVENTUALLY; }
 "&&"       { return AND; }
 "AND"      { return AND; }
-"FORALL"   { return FORALL; }
 "||"       { return OR; }
 "OR"       { return OR; }
-"EXISTS"   { return EXISTS; }
 "->"       { return IMPLIES; }
 "IMPLIES"  { return IMPLIES; }
 "<->"      { return EQUIV; }
@@ -107,6 +113,13 @@ char *string_buf_ptr;
 "~"        { return PTMATCH; }
 ".."       { return ELLIPSIS; }
 "otherwise" { return OTHERWISE; }
+
+"&&[" { return FORALL; }
+"||[" { return EXISTS; }
+"FORALL[" { return FORALL; }
+"EXISTS[" { return EXISTS; }
+"AND[" { return FORALL; }
+"OR["  { return EXISTS; }
 
 "true"     { return TRUE; }
 "false"    { return FALSE; }

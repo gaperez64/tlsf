@@ -10,6 +10,7 @@
   #include "tlsf.lex.h"
   #include "tlsfspec.h"
 
+
   #define APPEND(list, elem)                         \
     do {                                             \
       if ((list).len + 1 >= (list).max) {            \
@@ -127,24 +128,42 @@
   StrLst strlst;
   EnumValLst evllst;
 }
-%token LCURLY TITLE COLON DESCRIPTION MAIN LPAR RPAR
-%token SEMANTICS TARGET TAGS RCURLY MEALY COMMA DIV BANG
-%token STRICT FINITE MOORE INPUTS OUTPUTS INFO MAX PTMATCH
-%token SCOLON INITIALLY PRESET REQUIRE ASSERT MID EXISTS
-%token ASSUME GUARANTEE RELEASE UNTIL WKUNTIL SIZE FORALL
-%token GLOBAL PARAMETERS DEFINITIONS EQUAL ENUM MOD ADD
-%token IMPLIES EQUIV OR AND NOT NEXT EVENTUALLY MIN MUL
-%token ALWAYS LSQBRACE RSQBRACE TRUE FALSE SIZEOF SUM
-%token MINUS ELLIPSIS UNION INTER SDIFF ASSIGN PLUS PROD
-%token ELEM NEQUAL LE LEQ GE GEQ OTHERWISE TIMES CAP CUP
-%token UNKNOWN
+
+%token LCURLY TITLE DESCRIPTION MAIN RPAR
+%token SEMANTICS TARGET TAGS RCURLY MEALY COMMA
+%token STRICT FINITE MOORE INPUTS OUTPUTS INFO MAX
+%token SCOLON INITIALLY PRESET REQUIRE ASSERT MID
+%token ASSUME GUARANTEE GLOBAL PARAMETERS DEFINITIONS
+%token LSQBRACE RSQBRACE TRUE FALSE ENUM
+%token ELLIPSIS ASSIGN OTHERWISE UNKNOWN
 %token <str> IDENT MASK STRLIT NUMBER
+
+%right LPAR GREEDYFUN
+%right SIZE MIN MAX SIZEOF PLUS_LSQBRACE MUL_LSQBRACE UNARY1
+%left MUL
+%right DIV MOD
+%left PLUS MINUS 
+%right INTER_LSQBRACE UNION_LSQBRACE UNARY5
+%right SDIFF
+%left INTER
+%left UNION
+%left EQUAL NEQUAL LE LEQ GE GEQ
+%left ELEM
+%right BANG NOT NEXT EVENTUALLY ALWAYS FORALL EXISTS UNARY11
+%left AND
+%left OR
+%right IMPLIES EQUIV
+%right WKUNTIL
+%right UNTIL
+%left RELEASE
+%left PTMATCH
+%left COLON
+
 %type <sem> target semantics
 %type <strlst> tags masklist opttags
 %type <evllst> enumvals
 
 %%
-
 spec: info main
     | info global main
     ;
@@ -199,17 +218,16 @@ masklist: MASK                  { RESET($$); APPEND($$, $1); }
         ;
 
 fundecl: IDENT LPAR idlist RPAR ASSIGN gdexps
+       | IDENT LPAR idlist RPAR ASSIGN exp
        ;
 
 idlist: idlist COMMA IDENT
       | IDENT
       ;
 
-gdexps: gdexps exp
-      | gdexps exp COLON exp
+gdexps: gdexps boolexp COLON exp
       | gdexps pattexp COLON exp
-      | exp
-      | exp COLON exp
+      | boolexp COLON exp
       | pattexp COLON exp
       ;
 
@@ -219,12 +237,12 @@ pattexp: OTHERWISE
 
 opidxlist: setidxlist | rangeidxlist;
 
-setidxlist: setidxlist COMMA IDENT ELEM exp8
-          | IDENT ELEM exp8
+setidxlist: setidxlist COMMA IDENT ELEM setexp
+          | IDENT ELEM setexp
           ;
 
-rangeidxlist: rangeidxlist COMMA exp4 compidx IDENT compidx exp4
-            | exp4 compidx IDENT compidx exp4
+rangeidxlist: rangeidxlist COMMA numexp compidx IDENT compidx numexp
+            | numexp compidx IDENT compidx numexp
             ;
 
 compidx: LEQ | LE;
@@ -276,7 +294,7 @@ main: MAIN LCURLY
     ;
 
 boolsigs: boolsigs IDENT SCOLON
-        | boolsigs IDENT LSQBRACE exp RSQBRACE SCOLON
+        | boolsigs IDENT LSQBRACE numexp RSQBRACE SCOLON
         | boolsigs IDENT IDENT SCOLON
         | ;
 
@@ -295,128 +313,82 @@ guarantee: GUARANTEE LCURLY expseq RCURLY | ;
 expseq: expseq exp SCOLON
       | ;
 
-bangnum: BANG exp4
-       | exp4 BANG
+bangnum: BANG numexp
+       | numexp BANG
        ;
 
-bangrange: BANG exp4 COLON exp4
-         | exp4 COLON exp4 BANG
+bangrange: BANG numexp COLON numexp
+         | numexp COLON numexp BANG
          ;
 
-exp: exp17;
+exp: tlexp;
 
-exp17: exp16
-     | exp17 RELEASE exp16
+tlexp: boolexp
+     | tlexp RELEASE tlexp
+     | tlexp UNTIL tlexp
+     | tlexp WKUNTIL tlexp
+     | tlexp IMPLIES tlexp
+     | tlexp EQUIV tlexp
+     | tlexp OR tlexp
+     | tlexp AND tlexp
+     | NOT tlexp
+     | BANG tlexp
+     | NEXT tlexp
+     | NEXT LSQBRACE numexp RSQBRACE tlexp %prec UNARY11
+     | NEXT LSQBRACE BANG RSQBRACE tlexp %prec UNARY11
+     | NEXT LSQBRACE bangnum RSQBRACE tlexp %prec UNARY11
+     | EVENTUALLY tlexp
+     | EVENTUALLY LSQBRACE numexp COLON numexp RSQBRACE tlexp %prec UNARY11
+     | EVENTUALLY LSQBRACE bangrange RSQBRACE tlexp %prec UNARY11
+     | ALWAYS tlexp
+     | ALWAYS LSQBRACE numexp COLON numexp RSQBRACE tlexp %prec UNARY11
+     | ALWAYS LSQBRACE bangrange RSQBRACE tlexp %prec UNARY11
+     | EXISTS opidxlist RSQBRACE tlexp %prec UNARY11
+     | FORALL opidxlist RSQBRACE tlexp %prec UNARY11
      ;
 
-exp16: exp15
-     | exp15 UNTIL exp16
-     ;
+boolexp: numexp
+       | boolexp ELEM setexp
+       | numexp EQUAL numexp
+       | numexp NEQUAL numexp
+       | numexp GE numexp
+       | numexp GEQ numexp
+       | numexp LE numexp
+       | numexp LEQ numexp
+       ;
 
-exp15: exp14
-     | exp14 WKUNTIL exp15
-     ;
-
-exp14: exp13
-     | exp13 IMPLIES exp14 
-     | exp13 EQUIV exp14
-     ;
-
-exp13: exp12
-     | exp13 OR exp12
-     ;
-
-exp12: exp11
-     | exp12 AND exp11
-     ;
-
-exp11: exp10
-     | NOT exp11
-     | BANG exp11
-     | NEXT exp11
-     | NEXT LSQBRACE exp4 RSQBRACE exp11
-     | NEXT LSQBRACE BANG RSQBRACE exp11
-     | NEXT LSQBRACE bangnum RSQBRACE exp11
-     | EVENTUALLY exp11
-     | EVENTUALLY LSQBRACE exp4 COLON exp RSQBRACE exp11
-     | EVENTUALLY LSQBRACE bangrange RSQBRACE exp11
-     | ALWAYS exp11
-     | ALWAYS LSQBRACE exp4 COLON exp RSQBRACE exp11
-     | ALWAYS LSQBRACE bangrange RSQBRACE exp11
-     | AND LSQBRACE opidxlist RSQBRACE exp11
-     | OR LSQBRACE opidxlist RSQBRACE exp11
-     | EXISTS LSQBRACE opidxlist RSQBRACE exp11
-     | FORALL LSQBRACE opidxlist RSQBRACE exp11
-     ;
-
-exp10: exp9
-      | exp10 ELEM exp8
+setexp: numexp %prec UNARY1
+      | setexp UNION setexp
+      | setexp INTER setexp
+      | setexp SDIFF setexp
+      | INTER_LSQBRACE opidxlist RSQBRACE setexp %prec UNARY5
+      | UNION_LSQBRACE opidxlist RSQBRACE setexp %prec UNARY5
       ;
 
-exp9: exp8
-     | exp9 EQUAL exp8
-     | exp9 NEQUAL exp8
-     | exp9 GE exp8
-     | exp9 GEQ exp8
-     | exp9 LE exp8
-     | exp9 LEQ exp8
-     ;
+numexp: baseexp
+      | numexp MINUS numexp
+      | numexp PLUS numexp
+      | numexp DIV numexp
+      | numexp MOD numexp
+      | numexp MUL numexp
+      | PLUS_LSQBRACE opidxlist RSQBRACE numexp %prec UNARY1
+      | MUL_LSQBRACE opidxlist RSQBRACE numexp %prec UNARY1
+      | SIZE setexp
+      | MID setexp MID
+      | MAX setexp
+      | MIN setexp
+      | SIZEOF IDENT
+      ;
 
-exp8: exp7
-    | exp8 UNION exp7
-    ;
-
-exp7: exp6
-    | exp7 INTER exp6
-    ;
-
-exp6: exp5
-    | exp5 SDIFF exp6
-    ;
-
-exp5: exp4
-    | CAP LSQBRACE opidxlist RSQBRACE exp5
-    | CUP LSQBRACE opidxlist RSQBRACE exp5
-    ;
-
-exp4: exp3
-    | exp4 MINUS exp3
-    | exp4 PLUS exp3
-    | exp4 ADD exp3
-    ;
-
-exp3: exp2
-    | exp2 DIV exp3
-    | exp2 MOD exp3
-    ;
-
-exp2: exp1
-    | exp2 TIMES exp1
-    | exp2 MUL exp1
-    ;
-
-exp1: expbase
-    | SUM LSQBRACE opidxlist RSQBRACE exp1
-    | PLUS LSQBRACE opidxlist RSQBRACE exp1
-    | PROD LSQBRACE opidxlist RSQBRACE exp1
-    | TIMES LSQBRACE opidxlist RSQBRACE exp1
-    | SIZE exp8
-    | MID exp8 MID
-    | MAX exp8
-    | MIN exp8
-    | SIZEOF IDENT
-    ;
-
-expbase: IDENT LSQBRACE exp4 RSQBRACE
+baseexp: IDENT LSQBRACE numexp RSQBRACE
        | IDENT LPAR explist RPAR
        | LPAR exp RPAR
        | TRUE
        | FALSE
-       | IDENT
+       | IDENT %prec GREEDYFUN
        | NUMBER
        | LCURLY RCURLY
        | LCURLY explist RCURLY
        | LCURLY exp COMMA exp ELLIPSIS exp RCURLY
        ;
-
 %%
