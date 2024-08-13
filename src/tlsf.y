@@ -63,8 +63,10 @@
 
 %code {
   static TLSFSpec *spec;
-  /* Temporary BusEnum symbol table */
+  /* Temporary symbol tables */
   static BusEnumLst enmlst;
+  static PropLst inplst;
+  static PropLst outlst;
 
   void yyerror(const char *str) {
     fprintf(stderr, "[line %d] Error: %s\n", tlsflineno, str);
@@ -350,6 +352,8 @@ main: MAIN LCURLY
       assume
       guarantee
       RCURLY
+    { inplst = $5;
+      outlst = $9; }
     ;
 
 boolsigs: boolsigs IDENT SCOLON                          { PropPlHoldr ppl;
