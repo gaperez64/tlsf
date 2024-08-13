@@ -6,6 +6,8 @@
 %code top {
   #include <stddef.h>
   #include <stdio.h>
+  #include <string.h>
+  #include "exptree.h"
   #include "tlsfparse.h"
   #include "tlsf.lex.h"
   #include "tlsfspec.h"
@@ -48,6 +50,15 @@
   LIST(StrLst, char *);
   LIST(BusEnumLst, BusEnum);
   LIST(EnumValLst, EnumVal);
+  LIST(ParamLst, Param);
+
+  typedef struct PropPlHoldr {
+    char *name;
+    ExpTree *len;
+    char *type;
+  } PropPlHoldr;
+
+  LIST(PropLst, PropPlHoldr);
 }
 
 %code {
@@ -57,6 +68,21 @@
 
   void yyerror(const char *str) {
     fprintf(stderr, "[line %d] Error: %s\n", tlsflineno, str);
+    abort();
+  }
+
+  void checkBEnum(BusEnum* benum) {
+    benum->lenbus = strlen(benum->vals[0].opts[0]);
+    for (size_t i = 0; i < benum->nvals; i++)
+      for (size_t j = 0; j < benum->vals[i].nopts; j++)
+        if (benum->lenbus != strlen(benum->vals[i].opts[j])) {
+            fprintf(stderr, 
+                    "Error: BusEnum %s has values %s and %s " \
+                    "of different lengths\n",
+                    benum->name, benum->vals[0].opts[0],
+                    benum->vals[i].opts[j]);
+            abort();
+        }
   }
   
   int parseTLSFString(const char *in, TLSFSpec *outspec) {
@@ -65,7 +91,10 @@
   
     /* init some values */
     RESET(enmlst);
+    spec->params = NULL;
+    spec->nparams = 0;
     spec->benums = NULL;
+    spec->nbenums = 0;
     spec->initially = NULL;
     spec->preset = NULL;
     spec->require = NULL;
@@ -76,6 +105,11 @@
   
     int rv = yyparse();
     endTLSFScan();
+
+    /* post-processing and checks */
+    for (size_t i = 0; i < spec->nbenums; i++)
+      checkBEnum(spec->benums + i);
+    /* end post-processing */
     return rv;
   }
   
@@ -87,6 +121,13 @@
       for (size_t i = 0; i < spec->ntags; i++)
         free(spec->tags[i]);
       free(spec->tags);
+    }
+
+    /* Deleting Parameter symbol table */
+    if (spec->params != NULL) {
+      for (size_t i = 0; i < spec->nparams; i++)
+        free(spec->params[i].id);
+      free(spec->params);
     }
 
     /* Deleting BusEnum symbol table */
@@ -128,6 +169,8 @@
   SemType sem;
   StrLst strlst;
   EnumValLst evllst;
+  PropLst prolst;
+  ParamLst parlst;
 }
 
 %token LCURLY TITLE DESCRIPTION MAIN RPAR
@@ -170,6 +213,9 @@
 %type <sem> target semantics
 %type <strlst> tags masklist opttags
 %type <evllst> enumvals
+%type <prolst> boolsigs
+%type <tree> numexp baseexp
+%type <parlst> parlist
 
 %%
 spec: info main
@@ -185,10 +231,15 @@ global: GLOBAL LCURLY
 parameters: PARAMETERS LCURLY
             parlist
             RCURLY
+          { TOARRAY($3, spec->params, spec->nparams); }
           | ;
 
-parlist: parlist IDENT ASSIGN exp SCOLON
-       | ;
+parlist: parlist IDENT ASSIGN numexp SCOLON { Param par;
+                                              par.id = $2;
+                                              $$ = $1;
+                                              APPEND($$, par); }
+       |                                    { RESET($$); } 
+       ;
 
 definitions: DEFINITIONS LCURLY
              deflist
@@ -301,10 +352,26 @@ main: MAIN LCURLY
       RCURLY
     ;
 
-boolsigs: boolsigs IDENT SCOLON
-        | boolsigs IDENT LSQBRACE numexp RSQBRACE SCOLON
-        | boolsigs IDENT IDENT SCOLON
-        | ;
+boolsigs: boolsigs IDENT SCOLON                          { PropPlHoldr ppl;
+                                                           ppl.name = $2;
+                                                           ppl.len = NULL;
+                                                           ppl.type = NULL;
+                                                           $$ = $1;
+                                                           APPEND($$, ppl); }
+        | boolsigs IDENT LSQBRACE numexp RSQBRACE SCOLON { PropPlHoldr ppl;
+                                                           ppl.name = $2;
+                                                           ppl.len = $4;
+                                                           ppl.type = NULL;
+                                                           $$ = $1;
+                                                           APPEND($$, ppl); }
+        | boolsigs IDENT IDENT SCOLON                    { PropPlHoldr ppl;
+                                                           ppl.type = $2;
+                                                           ppl.name = $3;
+                                                           ppl.len = NULL;
+                                                           $$ = $1;
+                                                           APPEND($$, ppl); }
+        |                                                { RESET($$); }
+        ;
 
 initially: INITIALLY LCURLY expseq RCURLY | ;
 

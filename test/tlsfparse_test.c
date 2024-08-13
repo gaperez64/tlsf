@@ -327,10 +327,21 @@ bool checkInfo(const char str[], const char title[], const char descr[],
   TLSFSpec spec;
   parseTLSFString(str, &spec);
   bool ret = true;
-  ret &= strcmp(spec.title, title) == 0;
-  ret &= strcmp(spec.descr, descr) == 0;
-  ret &= spec.semnt == semnt;
-  ret &= spec.targt == targt;
+  ret &= (strcmp(spec.title, title) == 0);
+  ret &= (strcmp(spec.descr, descr) == 0);
+  ret &= (spec.semnt == semnt);
+  ret &= (spec.targt == targt);
+  delTLSFSpec(&spec);
+  return ret;
+}
+
+bool checkParam(const char str[], const char *ids[], size_t npars) {
+  TLSFSpec spec;
+  parseTLSFString(str, &spec);
+  bool ret = true;
+  ret &= (npars == spec.nparams);
+  for (size_t i = 0; i < npars; i++)
+    ret &= (strcmp(spec.params[i].id, ids[i]) == 0);
   delTLSFSpec(&spec);
   return ret;
 }
@@ -339,6 +350,8 @@ int main(int argc, char *argv[]) {
   /* to avoid silly warnings about unused parameters */
   (void)argc;
   (void)argv;
+
+  const char *param[] = {"n"};
 
   switch (atoi(argv[1])) {
   /* plain (syntactic) parsing tests */
@@ -398,6 +411,31 @@ int main(int argc, char *argv[]) {
   case 16:
     assert(checkInfo(TESTFILE8, "AMBA AHB Arbiter", "Component: Lock", ST_MEALY,
                      ST_MEALY));
+    break;
+  /* check parameters from the global section */
+  case 17:
+    assert(checkParam(TESTFILE1, NULL, 0));
+    break;
+  case 18:
+    assert(checkParam(TESTFILE2, param, 1));
+    break;
+  case 19:
+    assert(checkParam(TESTFILE3, param, 1));
+    break;
+  case 20:
+    assert(checkParam(TESTFILE4, NULL, 0));
+    break;
+  case 21:
+    assert(checkParam(TESTFILE5, NULL, 0));
+    break;
+  case 22:
+    assert(checkParam(TESTFILE6, NULL, 0));
+    break;
+  case 23:
+    assert(checkParam(TESTFILE7, NULL, 0));
+    break;
+  case 24:
+    assert(checkParam(TESTFILE8, param, 1));
     break;
   default:
     assert(true);

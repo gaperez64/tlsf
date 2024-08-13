@@ -10,3 +10,7 @@ endforeach
 foreach i : range(9, 17)
   test('test info tlsf ' + i.to_string(), t, args: [i.to_string()])
 endforeach
+
+foreach i : range(17, 25)
+  test('test parameters tlsf ' + i.to_string(), t, args: [i.to_string()])
+endforeach
