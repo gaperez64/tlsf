@@ -10,7 +10,6 @@
   #include "tlsf.lex.h"
   #include "tlsfspec.h"
 
-
   #define APPEND(list, elem)                         \
     do {                                             \
       if ((list).len + 1 >= (list).max) {            \
@@ -53,6 +52,7 @@
 
 %code {
   static TLSFSpec *spec;
+  /* Temporary BusEnum symbol table */
   static BusEnumLst enmlst;
 
   void yyerror(const char *str) {
@@ -88,7 +88,8 @@
         free(spec->tags[i]);
       free(spec->tags);
     }
-    /* Deleting enum symbol table */
+
+    /* Deleting BusEnum symbol table */
     if (spec->benums != NULL) {
       for (size_t i = 0; i < spec->nbenums; i++) {
         for (size_t j = 0; j < spec->benums[i].nvals; j++) {
@@ -138,7 +139,14 @@
 %token ELLIPSIS ASSIGN OTHERWISE UNKNOWN
 %token <str> IDENT MASK STRLIT NUMBER
 
+/* To remove shift/reduce ambiguities in
+ * consecutive guarded expressions in function defs
+ */
 %right LPAR GREEDYFUN
+
+/* Precedence and associativity of all operators 
+ * as per the TLSF paper 
+ */
 %right SIZE MIN MAX SIZEOF PLUS_LSQBRACE MUL_LSQBRACE UNARY1
 %left MUL
 %right DIV MOD
