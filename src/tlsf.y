@@ -95,6 +95,19 @@
             abort();
         }
   }
+
+  Prop *evalPropVals(PropLst *props, BusEnum *benum, Param *params) {
+    if (props->len == 0)
+      return NULL;
+    Prop *ret = malloc(sizeof(Prop) * props->len);
+    for (size_t i = 0; i < props->len; i++) {
+      ret[i].name = props->lst[i].name;
+      ret[i].len = props->lst[i].len == NULL ?
+                   1 : evalConstNumExp(props->lst[i].len, params);
+      /* TODO: finalize this! */
+    }
+    free(props->lst);
+  }
   
   int parseTLSFString(const char *in, TLSFSpec *outspec) {
     setTLSFInputString(in);
@@ -245,11 +258,14 @@ parameters: PARAMETERS LCURLY
           { TOARRAY($3, spec->params, spec->nparams); }
           | ;
 
-parlist: parlist IDENT ASSIGN numexp SCOLON { Param par;
-                                              par.id = $2;
-                                              $$ = $1;
-                                              APPEND($$, par); }
-       |                                    { RESET($$); } 
+parlist: parlist IDENT ASSIGN numexp SCOLON
+       { Param par;
+         par.id = $2;
+         par.val = evalConstNumExp($4, NULL);
+         free($4);
+         $$ = $1;
+         APPEND($$, par); }
+       | { RESET($$); } 
        ;
 
 definitions: DEFINITIONS LCURLY
