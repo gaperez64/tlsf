@@ -424,6 +424,7 @@ tlexp: boolexp
      | ALWAYS LSQBRACE bangrange RSQBRACE tlexp %prec UNARY11
      | EXISTS opidxlist RSQBRACE tlexp %prec UNARY11
      | FORALL opidxlist RSQBRACE tlexp %prec UNARY11
+     | IDENT LSQBRACE numexp RSQBRACE
      ;
 
 boolexp: numexp
@@ -434,6 +435,8 @@ boolexp: numexp
        | numexp GEQ numexp
        | numexp LE numexp
        | numexp LEQ numexp
+       | TRUE
+       | FALSE
        ;
 
 setexp: numexp %prec UNARY1
@@ -442,6 +445,9 @@ setexp: numexp %prec UNARY1
       | setexp SDIFF setexp
       | INTER_LSQBRACE opidxlist RSQBRACE setexp %prec UNARY5
       | UNION_LSQBRACE opidxlist RSQBRACE setexp %prec UNARY5
+      | LCURLY RCURLY
+      | LCURLY explist RCURLY
+      | LCURLY exp COMMA exp ELLIPSIS exp RCURLY
       ;
 
 numexp: baseexp
@@ -459,15 +465,10 @@ numexp: baseexp
       | SIZEOF IDENT
       ;
 
-baseexp: IDENT LSQBRACE numexp RSQBRACE
-       | IDENT LPAR explist RPAR
-       | LPAR exp RPAR
-       | TRUE
-       | FALSE
-       | IDENT %prec GREEDYFUN
-       | NUMBER
-       | LCURLY RCURLY
-       | LCURLY explist RCURLY
-       | LCURLY exp COMMA exp ELLIPSIS exp RCURLY
+baseexp: IDENT LPAR explist RPAR { NEWXT($$, XT_FUN); NEWXT($$.left, XT_ID);
+                                   $$.left.str = $1; $$.right = $3; }
+       | LPAR exp RPAR           { $$ = $2; }
+       | IDENT %prec GREEDYFUN   { NEWXT($$, XT_ID); $$.str = $1; }
+       | NUMBER                  { NEWXT($$, XT_NUM); $$.val = atoi($1); }
        ;
 %%

@@ -32,11 +32,6 @@ typedef struct Prop {
   BusEnum *type;
 } Prop;
 
-typedef struct Param {
-  char *id;
-  int val;
-} Param;
-
 typedef struct TLSFSpec {
   char *title;
   char *descr;
