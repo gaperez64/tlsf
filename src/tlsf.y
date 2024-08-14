@@ -37,6 +37,15 @@
       (list).len = 0;    \
       (list).max = 0;    \
     } while (0)
+
+  #define NEWXT(res, xttype)           \
+    do {                               \
+      (res) = malloc(sizeof(ExpTree)); \
+      (res)->type = xttype;            \
+      (res)->left = NULL;              \
+      (res)->right = NULL;             \
+      (res)->str = NULL;               \
+    } while (0)
 }
 
 %code requires {
@@ -216,7 +225,7 @@
 %type <strlst> tags masklist opttags
 %type <evllst> enumvals
 %type <prolst> boolsigs
-%type <tree> numexp baseexp
+%type <tree> numexp baseexp exp explist
 %type <parlst> parlist
 
 %%
@@ -308,8 +317,11 @@ rangeidxlist: rangeidxlist COMMA numexp compidx IDENT compidx numexp
 
 compidx: LEQ | LE;
 
-explist: exp COMMA explist
-       | exp;
+explist: exp COMMA explist { NEWXT($$, XT_LST);
+                             $$->left = $1;
+                             $$->right = $3; }
+       | exp               { $$ = $1; }
+       ;
 
 info: INFO LCURLY 
       TITLE COLON STRLIT         
@@ -465,10 +477,14 @@ numexp: baseexp
       | SIZEOF IDENT
       ;
 
-baseexp: IDENT LPAR explist RPAR { NEWXT($$, XT_FUN); NEWXT($$.left, XT_ID);
-                                   $$.left.str = $1; $$.right = $3; }
+baseexp: IDENT LPAR explist RPAR { NEWXT($$, XT_FUN); 
+                                   NEWXT($$->left, XT_ID);
+                                   $$->left->str = $1;
+                                   $$->right = $3; }
        | LPAR exp RPAR           { $$ = $2; }
-       | IDENT %prec GREEDYFUN   { NEWXT($$, XT_ID); $$.str = $1; }
-       | NUMBER                  { NEWXT($$, XT_NUM); $$.val = atoi($1); }
+       | IDENT %prec GREEDYFUN   { NEWXT($$, XT_ID); $$->str = $1; }
+       | NUMBER                  { NEWXT($$, XT_NUM); 
+                                   $$->val = atoi($1);
+                                   free($1); }
        ;
 %%

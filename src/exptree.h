@@ -12,11 +12,11 @@ typedef enum ExpType {
   XT_MAX,
   XT_MIN,
   XT_SIZEOF,
-  XT_SUM,    /* over indexed expression */
-  XT_PROD,   /* over indexed expression */
+  XT_SUM,  /* over indexed expression */
+  XT_PROD, /* over indexed expression */
   XT_FUN,
   XT_NUM,
-  XT_LST,    /* for linked list */
+  XT_LST, /* for linked list */
 } ExpType;
 
 typedef struct Param {
