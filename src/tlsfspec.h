@@ -43,6 +43,10 @@ typedef struct TLSFSpec {
   char **tags;
   size_t nbenums;
   BusEnum *benums;
+  Prop *inputs;
+  size_t ninputs;
+  Prop *outputs;
+  size_t noutputs;
   struct ExpTree *initially;
   struct ExpTree *preset;
   struct ExpTree *require;
@@ -50,5 +54,7 @@ typedef struct TLSFSpec {
   struct ExpTree *assume;
   struct ExpTree *guarantee;
 } TLSFSpec;
+
+BusEnum *findEnum(char *, BusEnum *, size_t);
 
 #endif

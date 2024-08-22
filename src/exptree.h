@@ -1,6 +1,8 @@
 #ifndef EXPTREE_H
 #define EXPTREE_H
 
+#include <stddef.h>
+
 typedef enum ExpType {
   XT_ID,
   XT_SUB,
@@ -33,7 +35,7 @@ typedef struct ExpTree {
   struct ExpTree *right;
 } ExpTree;
 
-int evalConstNumExp(ExpTree *, Param *);
+int evalConstNumExp(ExpTree *, Param *, size_t);
 void delExpTree(ExpTree *);
 
 #endif

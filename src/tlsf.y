@@ -96,17 +96,28 @@
         }
   }
 
-  Prop *evalPropVals(PropLst *props, BusEnum *benum, Param *params) {
+  Prop *evalPropVals(PropLst *props) {
     if (props->len == 0)
       return NULL;
     Prop *ret = malloc(sizeof(Prop) * props->len);
     for (size_t i = 0; i < props->len; i++) {
       ret[i].name = props->lst[i].name;
-      ret[i].len = props->lst[i].len == NULL ?
-                   1 : evalConstNumExp(props->lst[i].len, params);
-      /* TODO: finalize this! */
+      if (props->lst[i].len != NULL) {
+        ret[i].len = evalConstNumExp(props->lst[i].len,
+                                     spec->params,
+                                     spec->nparams);
+        free(props->lst[i].len);
+        ret[i].type = NULL;
+      } else if (props->lst[i].type != NULL) {
+        ret[i].len = 1;
+        ret[i].type = findEnum(props->lst[i].type,
+                               spec->benums,
+                               spec->nbenums);
+        free(props->lst[i].type);
+      }
     }
     free(props->lst);
+    return ret;
   }
   
   int parseTLSFString(const char *in, TLSFSpec *outspec) {
@@ -133,6 +144,10 @@
     /* post-processing and checks */
     for (size_t i = 0; i < spec->nbenums; i++)
       checkBEnum(spec->benums + i);
+    spec->ninputs = inplst.len;
+    spec->inputs = evalPropVals(&inplst);
+    spec->noutputs = outlst.len;
+    spec->outputs = evalPropVals(&outlst);
     /* end post-processing */
     return rv;
   }
@@ -261,7 +276,7 @@ parameters: PARAMETERS LCURLY
 parlist: parlist IDENT ASSIGN numexp SCOLON
        { Param par;
          par.id = $2;
-         par.val = evalConstNumExp($4, NULL);
+         par.val = evalConstNumExp($4, NULL, 0);
          free($4);
          $$ = $1;
          APPEND($$, par); }

@@ -17,10 +17,13 @@ pgen = generator(bison,
 # Library: exptree
 exptree_lib = library('exptree', 'exptree.c')
 
+# Library: tlsfspec
+tlsfspec_lib = library('tlsfspec', 'tlsfspec.c')
+
 # Library: TLSF parser
 tlsfparse_lib = library('tlsfparse',
                         [lgen.process('tlsf.l'),
                          pgen.process('tlsf.y')],
-                        link_with: [exptree_lib],
+                        link_with: [exptree_lib, tlsfspec_lib],
                         include_directories: [tlsf_inc])
 
